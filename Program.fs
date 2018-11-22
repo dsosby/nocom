@@ -16,21 +16,23 @@ let getCellType (cell: HtmlNode) =
     | x when x.HasClass("moto-param-header") -> Some HeaderCell
     | _ -> None
 
+/// Fetch tuple types of status tables
+let scrapeStatus (connectionPage: HtmlDocument) =
+    connectionPage.Descendants ["td"]
+    |> Seq.map (fun cell -> (getCellType cell, cell))
+    |> Seq.filter (fun (cellType, _) -> cellType.IsSome)
+    |> Seq.map (fun (cellType, cell) -> (cellType.Value, cell.InnerText()))
+    |> Seq.toArray
 
 [<EntryPoint>]
 let main argv =
-    printfn "Logging in"
     try
+        printfn "Logging in"
         Http.RequestString(loginUrl, body = FormValues ["loginUsername", loginUsername;
                                                         "loginPassword", loginPassword]) |> ignore
         let connectionPage = HtmlDocument.Load(connectionPageUrl)
-        let dataElems =
-            connectionPage.Descendants ["td"]
-            |> Seq.map (fun cell -> (getCellType cell, cell))
-            |> Seq.filter (fun (cellType, _) -> cellType.IsSome)
-            |> Seq.map (fun (cellType, cell) -> (cellType.Value, cell.InnerText()))
-            |> Seq.toArray
-        printfn "%A" dataElems
+        let statusElements = scrapeStatus connectionPage
+        printfn "%A" statusElements
     with
         | :? System.Net.WebException -> printfn "Modem ded"
     0
